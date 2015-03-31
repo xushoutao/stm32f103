@@ -616,6 +616,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\..\Utilities\STM32_BSP\STM32F10x_Driver\stm32f10x_wtd_int.c</FilePath>
             </File>
+            <File>
+              <FileName>stm32f10x_wtd_timer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\Utilities\STM32_BSP\STM32F10x_Driver\stm32f10x_wtd_timer.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

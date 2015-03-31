@@ -1,5 +1,7 @@
 .\output\main.o: ..\src\main.c
 .\output\main.o: C:\Keil_470\ARM\ARMCC\bin\..\include\stdio.h
+.\output\main.o: C:\Keil_470\ARM\ARMCC\bin\..\include\string.h
+.\output\main.o: C:\Keil_470\ARM\ARMCC\bin\..\include\stdlib.h
 .\output\main.o: ..\..\..\..\Utilities\Third_Party\FreeRTOS\include\FreeRTOS.h
 .\output\main.o: C:\Keil_470\ARM\ARMCC\bin\..\include\stddef.h
 .\output\main.o: C:\Keil_470\ARM\ARMCC\bin\..\include\stdint.h

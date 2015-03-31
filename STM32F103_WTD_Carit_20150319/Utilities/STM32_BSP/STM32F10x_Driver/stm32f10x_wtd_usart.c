@@ -35,6 +35,8 @@
 #include <stdio.h>
 #include "stm32f10x.h"
 #include "stm32f10x_wtd_drivers.h"
+#include "stm32f10x_wtd_timer.h"
+
 
 
 /********************************************************************************************************
@@ -59,8 +61,10 @@
 	void Driver_UsartGPIOInit(USART_TypeDef* USARTx);
 	void Dirver_UsartNVICInit(USART_TypeDef* USARTx);
 #endif
-u8  USART_RX_BUF[USART_REC_LEN]; //接收缓冲,最大USART_REC_LEN个字节.末字节为换行符 
-u16 USART_RX_STA;
+u8 USART_RX_BUF[64];     //接收缓冲,最大64个字节.
+u8 Rec_Count=0,Rec_Len;			//Rec_Len为接收到的字符个数
+u8 Rec_Over_Flag=0;
+u8 RxTimeout=3; 
 /*********************************************************************************************************
 ** Function name:           
 ** Descriptions:            
@@ -219,6 +223,7 @@ void Driver_UsartSendData(USART_TypeDef* USARTx, uint8_t *pucBuf, uint32_t uiDat
 	{
 		//if(pucBuf[i] != 0x00)
 		//{
+            USART_ClearFlag(USARTx, USART_FLAG_TC);
 			USART_SendData(USARTx, pucBuf[i]);
 			while(USART_GetFlagStatus(USARTx, USART_FLAG_TC) == RESET);
 		//}
@@ -249,6 +254,7 @@ void Driver_UsartDebugPortSet(USART_TypeDef* USARTx)
 
 PUTCHAR_PROTOTYPE
 {
+    USART_ClearFlag(USART_Port, USART_FLAG_TC);
 	/* Write a character to the USART */
 	USART_SendData(USART_Port, (u8)ch);
 
@@ -282,87 +288,24 @@ void Driver_USART1InterrupHandler( void )
 	}
 }
 
-void Driver_USART2InterrupHandler( void )
-{
-	// Receive interrupt
-	if(USART_GetITStatus(USART2, USART_IT_RXNE) != RESET)
-	{
-		USART_ClearITPendingBit(USART2, USART_IT_RXNE);
-		printf("%c\n", USART_ReceiveData(USART2));
-	//	USART_SendData(USART2, ser_temp);
-// 		if((USART_RX_STA&0x8000)==0)//接收未完成
-// 		{
-// 			if(USART_RX_STA&0x4000)//接收到了0x0d
-// 			{
-// 				if(ser_temp!=0x0a)
-// 					USART_RX_STA=0;//接收错误,重新开始
-// 				else 
-// 					USART_RX_STA|=0x8000;	//接收完成了 
-// 			}
-// 			else //还没收到0X0D
-// 			{	
-// 				if(ser_temp==0x0d)
-// 					USART_RX_STA|=0x4000;
-// 				else
-// 				{
-// 					USART_RX_BUF[USART_RX_STA&0X3FFF]=ser_temp ;
-// 					USART_RX_STA++;
-// 					if(USART_RX_STA>(USART_REC_LEN-1))USART_RX_STA=0;//接收数据错误,重新开始接收	  
-// 				}		 
-// 			}
-		}   		 		
-	    /* Read one byte from the receive data register */
-	
-	
-	// Send complete interrupt
-	if( USART_GetITStatus(USART2, USART_IT_TC) != RESET )
-	{
-		USART_ClearITPendingBit(USART2, USART_IT_TC);
-	}
-	// Send buffer empty interrupt
-	if( USART_GetITStatus(USART2, USART_IT_TXE) != RESET )
-	{
-		USART_ClearITPendingBit(USART2, USART_IT_TXE);
-		USART_ITConfig(USART2, USART_IT_TXE, DISABLE);
-	}
-}
 
 void Driver_USART3InterrupHandler( void )
 {
-	u8 ser_temp;
-    printf("get into interrupt\n");
-	// Receive interrupt
-	if(USART_GetITStatus(USART3, USART_IT_RXNE) != RESET)
-	{
-		USART_ClearITPendingBit(USART3, USART_IT_RXNE);
-		printf("%02x\n", USART_ReceiveData(USART3));
-	//	USART_SendData(USART3, ser_temp);
-// 		if((USART_RX_STA&0x8000)==0)//接收未完成
-// 		{
-// 			if(USART_RX_STA&0x4000)//接收到了0x0d
-// 			{
-// 				if(ser_temp!=0x0a)
-// 					USART_RX_STA=0;//接收错误,重新开始
-// 				else 
-// 					USART_RX_STA|=0x8000;	//接收完成了 
-// 			}
-// 			else //还没收到0X0D
-// 			{	
-// 				if(ser_temp==0x0d)
-// 					USART_RX_STA|=0x4000;
-// 				else
-// 				{
-// 					USART_RX_BUF[USART_RX_STA&0X3FFF]=ser_temp ;
-// 					USART_RX_STA++;
-// 					if(USART_RX_STA>(USART_REC_LEN-1))USART_RX_STA=0;//接收数据错误,重新开始接收	  
-// 				}		 
-// 			}
-		}   		 		
-	    /* Read one byte from the receive data register */
-	
-	
-	// Send complete interrupt
-	if( USART_GetITStatus(USART3, USART_IT_TC) != RESET )
+    if(USART_GetITStatus(USART3, USART_IT_RXNE) != RESET)
+    {
+        USART_ClearITPendingBit(USART3, USART_IT_RXNE);
+        if(RxTimeout<=0)
+        {
+            Rec_Len=Rec_Count;
+            Rec_Count=0;
+            Rec_Over_Flag=1;
+        }
+        RxTimeout=3;
+        USART_RX_BUF[Rec_Count++]=USART_ReceiveData(USART3);
+
+       // USART_SendData(USART_Port, USART_ReceiveData(USART3));
+    }
+    if( USART_GetITStatus(USART3, USART_IT_TC) != RESET )
 	{
 		USART_ClearITPendingBit(USART3, USART_IT_TC);
 	}
@@ -372,6 +315,7 @@ void Driver_USART3InterrupHandler( void )
 		USART_ClearITPendingBit(USART3, USART_IT_TXE);
 		USART_ITConfig(USART3, USART_IT_TXE, DISABLE);
 	}
+	// Send complete interrupt
 }
 #endif
 /*********************************************************************************************************
